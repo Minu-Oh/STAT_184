@@ -1,0 +1,254 @@
+---
+title: "Analyzing the Impact on Stroke Risk"
+author: "Minwoo Oh"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document: default
+geometry: left=0.5in,right=0.5in,top=0.5in,bottom=0.5in
+urlcolor: blue
+header-includes: \usepackage{subfig}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readr)
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+library(dplyr)
+library(esquisse)
+library(mosaic)
+library(mosaicData)
+library(dcData)
+library(stringr)
+```
+
+# Set Directory and Call the Dataset
+
+```{r}
+brain_stroke <- read_csv("brain_stroke.csv")
+head(brain_stroke)
+tail(brain_stroke)
+summary(brain_stroke)
+```
+
+# Creat Summary Table
+
+```{r}
+# Convert gender and stroke to factors with levels "Female" and "Male" for gender, and "0" and "1" for stroke
+brain_stroke$gender <- factor(brain_stroke$gender, levels = c("Female", "Male"))
+brain_stroke$stroke <- factor(brain_stroke$stroke, levels = c("0", "1"))
+
+# Create a summary table
+summary_table <- brain_stroke %>%
+  group_by(gender, stroke) %>%
+  summarise(count = n(), .groups = "drop")
+```
+
+# Bar Plot for Gender and Stroke
+
+```{r}
+# Bar plot for gender and stroke with counts and custom labels
+ggplot(brain_stroke, aes(x = gender, fill = stroke)) +
+  geom_bar(position = "dodge") +
+  geom_text(data = summary_table, 
+            aes(x = gender, y = count, label = count, group = stroke),
+            position = position_dodge(width = 0.9), vjust = -0.25) +
+  scale_fill_manual(values = c("grey", "red"),
+                    labels = c("No Stroke", "Stroke"),
+                    name = "Stroke") +
+  labs(title = "Distribution of Stroke by Gender",
+       x = "Gender",
+       y = "Count") +
+  theme_minimal()
+```
+
+# Box Plot for Age and Stroke
+
+```{r}
+# Box plot for age and stroke with custom labels
+ggplot(brain_stroke, aes(x = stroke, y = age, fill = stroke)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("grey", "red"),
+                    labels = c("No Stroke", "Stroke"),
+                    name = "Stroke") +
+  labs(title = "Boxplot of Age by Stroke Status",
+       x = "Stroke Status",
+       y = "Age") +
+  theme_minimal()
+```
+
+# Box Plot for Age by Gender and Stroke
+
+```{r}
+# Summary statistics for age
+summary(brain_stroke$age)
+# Cross-tabulation of gender and stroke
+table(brain_stroke$gender, brain_stroke$stroke)
+
+# Boxplot of age by gender and stroke
+ggplot(brain_stroke, aes(x = gender, y = age, fill = stroke)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("grey", "red"),
+                    labels = c("No Stroke", "Stroke"),
+                    name = "Stroke") +
+  labs(title = "Boxplot of Age by Gender and Stroke Status",
+       x = "Gender",
+       y = "Age") +
+  theme_minimal()
+```
+
+# T-Test for Age Difference between Genders
+
+```{r}
+# One-way ANOVA to test for age differences by gender and stroke
+model <- aov(age ~ gender * stroke, data = brain_stroke)
+summary(model)
+
+# t-test for age between male and female within each stroke group
+t_test_stroke_0 <- t.test(age ~ gender, data = subset(brain_stroke, stroke == "0"))
+t_test_stroke_1 <- t.test(age ~ gender, data = subset(brain_stroke, stroke == "1"))
+
+print(t_test_stroke_0)
+print(t_test_stroke_1)
+```
+
+## For individuals without a stroke (t_test_stroke_0):
+### P-value: 0.02914
+> The p-value is less than 0.05, suggesting a statistically significant difference in age between genders for individuals without a stroke.
+
+### Effect Size (Confidence Interval):
+>The confidence interval (0.15 to 2.76) suggests that the true difference in means between females and males for individuals without a stroke is likely to fall between these values.
+
+### Means:
+>The mean age for females without a stroke is approximately 42.75.
+The mean age for males without a stroke is approximately 41.29.
+
+## For individuals with a stroke (t_test_stroke_1):
+### P-value: 0.4417
+> The p-value is greater than 0.05, indicating that there's no strong evidence of a significant difference in age between genders for individuals with a stroke.
+
+### Effect Size (Confidence Interval):
+> The confidence interval (-4.28 to 1.87) includes zero, suggesting that the true difference in means between females and males for individuals with a stroke might include zero.
+
+### Means:
+> The mean age for females with a stroke is approximately 67.30.
+The mean age for males with a stroke is approximately 68.50.
+
+## Summary:
+>For individuals without a stroke, there seems to be a statistically significant difference in age between genders.
+
+>For individuals with a stroke, there's no strong evidence of a significant difference in age between genders.
+
+> Therefore, the results can be concluded that age and gender tend to not have a significant impact on stroke risk.
+
+```{r}
+# Assuming 'heart_disease' and 'stroke' are factors
+brain_stroke$hypertension <- factor(brain_stroke$hypertension, levels = c("0", "1"))
+brain_stroke$stroke <- factor(brain_stroke$stroke, levels = c("0", "1"))
+
+# Create a summary table for counts
+summary_table <- brain_stroke %>%
+  group_by(hypertension, stroke) %>%
+  summarise(count = n(), .groups = "drop")
+
+# Bar plot with counts on top and custom labels
+ggplot(brain_stroke, aes(x = hypertension, fill = stroke)) +
+  geom_bar(position = "dodge") +
+  geom_text(data = summary_table, 
+            aes(x = hypertension, y = count, label = count, group = stroke),
+            position = position_dodge(width = 0.9), vjust = -0.5) +
+  scale_fill_manual(values = c("grey", "red"), 
+                    labels = c("No Stroke", "Stroke"),
+                    name = "Stroke") +
+  scale_x_discrete(labels = c("No Hypertension", "Hypertension"),
+                   name = "Hypertension") +
+  labs(title = "Relationship Between Hypertension and Stroke",
+       x = "",
+       y = "Count") +
+  theme_minimal()
+```
+
+```{r}
+# Assuming 'heart_disease' and 'stroke' are factors
+brain_stroke$heart_disease <- factor(brain_stroke$heart_disease, levels = c("0", "1"))
+brain_stroke$stroke <- factor(brain_stroke$stroke, levels = c("0", "1"))
+
+# Create a summary table for counts
+summary_table <- brain_stroke %>%
+  group_by(heart_disease, stroke) %>%
+  summarise(count = n(), .groups = "drop")
+
+# Bar plot with counts on top and custom labels
+ggplot(brain_stroke, aes(x = heart_disease, fill = stroke)) +
+  geom_bar(position = "dodge") +
+  geom_text(data = summary_table, 
+            aes(x = heart_disease, y = count, label = count, group = stroke),
+            position = position_dodge(width = 0.9), vjust = -0.5) +
+  scale_fill_manual(values = c("grey", "red"), 
+                    labels = c("No Stroke", "Stroke"),
+                    name = "Stroke") +
+  scale_x_discrete(labels = c("No Heart Disease", "Heart Disease"),
+                   name = "Heart Disease") +
+  labs(title = "Relationship Between Heart Disease and Stroke",
+       x = "",
+       y = "Count") +
+  theme_minimal()
+```
+
+```{r}
+# Calculate the counts for each combination of hypertension and heart_disease
+counts <- brain_stroke %>%
+  count(hypertension, heart_disease, stroke) %>%
+  group_by(hypertension, stroke) %>%
+  mutate(perc = n / sum(n))
+
+# Plot 2: Proportion of Heart Disease within Hypertension Categories by Stroke Status
+ggplot(brain_stroke, aes(x = hypertension, fill = heart_disease)) +
+  geom_bar(position = "fill") +
+  geom_text(data = counts, aes(label = scales::percent(perc), y = perc), 
+            position = position_fill(vjust = 0.5), size = 3) +
+  scale_fill_manual(values = c("No Heart Disease" = "grey", "Heart Disease" = "orange")) +
+  facet_grid(~ stroke) +
+  labs(title = "Proportion of Heart Disease within Hypertension Categories by Stroke Status",
+       x = "Hypertension",
+       y = "Proportion",
+       fill = "Heart Disease Status") +
+  theme_minimal()
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
